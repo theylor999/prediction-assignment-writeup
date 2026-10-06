@@ -1,0 +1,42 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Theylor"
+date: "October 6, 2026"
+output: html_document
+---
+
+R Markdown source equivalent to `index.html` (the HTML report was computed with `analysis.py`, Python/scikit-learn, because R was not installed on the authoring machine; the numbers in `index.html` come from that run).
+
+```{r setup, message=FALSE}
+library(caret); library(randomForest)
+set.seed(1234)
+tr <- read.csv("pml-training.csv", na.strings = c("NA", "", "#DIV/0!"))
+te <- read.csv("pml-testing.csv",  na.strings = c("NA", "", "#DIV/0!"))
+```
+
+```{r clean}
+keep <- colMeans(is.na(tr)) < 0.05
+tr <- tr[, keep]; te <- te[, keep]
+tr <- tr[, -(1:7)]; te <- te[, -(1:7)]   # id, user, timestamps, windows
+tr$classe <- factor(tr$classe)
+```
+
+```{r split}
+inTrain <- createDataPartition(tr$classe, p = 0.7, list = FALSE)
+training <- tr[inTrain, ]; validation <- tr[-inTrain, ]
+```
+
+```{r model, cache=TRUE}
+ctrl <- trainControl(method = "cv", number = 5)
+rf <- train(classe ~ ., data = training, method = "rf", trControl = ctrl, ntree = 300)
+rf
+```
+
+```{r oos}
+cm <- confusionMatrix(predict(rf, validation), validation$classe)
+cm   # out-of-sample accuracy ~ 0.99
+```
+
+```{r predict}
+predict(rf, te[, names(te) != "problem_id"])
+```
